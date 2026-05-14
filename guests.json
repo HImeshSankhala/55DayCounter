@@ -1,0 +1,24 @@
+﻿[
+    {
+        "Id":  1,
+        "GuestName":  "Tom Cruis",
+        "RoomNumber":  "111",
+        "CheckInDate":  "\/Date(1773792000000)\/",
+        "CheckOutDate":  "\/Date(1778457600000)\/",
+        "NotifyDate":  "\/Date(1778025600000)\/",
+        "Status":  "Due Soon",
+        "Notes":  "",
+        "LastNotifiedFor":  "2026-05-11"
+    },
+    {
+        "Id":  2,
+        "GuestName":  "nirdehs",
+        "RoomNumber":  "112",
+        "CheckInDate":  "\/Date(1773723600000)\/",
+        "CheckOutDate":  "\/Date(1778389200000)\/",
+        "NotifyDate":  "\/Date(1777957200000)\/",
+        "Status":  "Due Today",
+        "Notes":  "",
+        "LastNotifiedFor":  ""
+    }
+]
