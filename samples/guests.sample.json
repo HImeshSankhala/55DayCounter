@@ -1,0 +1,10 @@
+[
+  {
+    "Id": "sample-guest-1",
+    "GuestName": "Sample Guest",
+    "RoomNumber": "101",
+    "CheckInDate": "2026-01-01T00:00:00",
+    "Status": "Active",
+    "Notes": "Example record only"
+  }
+]

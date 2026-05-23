@@ -1,0 +1,27 @@
+# Generated installer/package artifacts
+dist/
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+.dotnet/
+.nuget/
+55DayCounter_EXE_Payload/
+55DayCounter_EXE_Payload.zip
+55DayCounter_Release*/
+55DayCounter_Release*.zip
+55DayCounter_USB_Package/
+55DayCounter_USB_Package.zip
+
+# Runtime and local logs/temp files
+*.tmp
+*.log
+guests.json
+local-data/
+guests.*.tmp
+guests.unreadable-*.json
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini

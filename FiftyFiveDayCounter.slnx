@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FiftyFiveDayCounter.App/FiftyFiveDayCounter.App.csproj" />
+    <Project Path="src/FiftyFiveDayCounter.Core/FiftyFiveDayCounter.Core.csproj" />
+    <Project Path="src/FiftyFiveDayCounter.Storage/FiftyFiveDayCounter.Storage.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FiftyFiveDayCounter.Core.Tests/FiftyFiveDayCounter.Core.Tests.csproj" />
+  </Folder>
+</Solution>
