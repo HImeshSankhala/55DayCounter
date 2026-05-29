@@ -10,5 +10,4 @@ public sealed class GuestCycle
     public DateTime NotifyDate { get; set; } = DateTime.Today.AddDays(49);
     public string Status { get; set; } = CycleStatus.Active;
     public string Notes { get; set; } = string.Empty;
-    public string LastNotifiedFor { get; set; } = string.Empty;
 }

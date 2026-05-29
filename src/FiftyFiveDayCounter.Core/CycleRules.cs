@@ -86,8 +86,7 @@ public static class CycleRules
             CheckOutDate = dates.CheckOutDate,
             NotifyDate = dates.NotifyDate,
             Status = CycleStatus.Active,
-            Notes = notes.Trim(),
-            LastNotifiedFor = string.Empty
+            Notes = notes.Trim()
         };
     }
 
@@ -104,8 +103,6 @@ public static class CycleRules
         {
             guest.Status = CycleStatus.Active;
         }
-
-        guest.LastNotifiedFor = string.Empty;
     }
 
     public static GuestCycle? FindActiveRoomConflict(IEnumerable<GuestCycle> guests, string roomNumber, int excludeId, DateTime today)

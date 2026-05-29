@@ -2,55 +2,82 @@
 
 ## One-Step EXE Install From Pendrive
 
-1. Copy `installer\phase1-bootstrap\55DayCounterInstaller.exe` to a pendrive.
-2. Take the pendrive to the hotel company PC.
-3. Double-click `55DayCounterInstaller.exe`.
-4. When asked, choose whether to create a Desktop shortcut.
-5. Wait for the success message.
-6. Open the app from the Desktop shortcut if you created one, or from the Start Menu shortcut named `55 Day Counter`.
+1. Build a release with:
 
-The installer does not need internet access.
+   ```powershell
+   powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1
+   ```
+
+2. Copy `dist\release\55DayCounterInstaller.exe` to a pendrive.
+3. Take the pendrive to the hotel company PC.
+4. Double-click `55DayCounterInstaller.exe`.
+5. Choose whether to create a Desktop shortcut.
+6. Open the app from the Desktop shortcut or Start Menu shortcut named `55 Day Counter`.
+
+The installer does not need internet access because the app is published self-contained for `win-x64`.
 
 ## What The Installer Does
 
 The installer:
 
-- Extracts the required app files automatically.
-- Copies the app to `%LOCALAPPDATA%\55DayCounter`.
-- Asks whether to create a Desktop shortcut.
-- Creates a Start Menu shortcut.
-- Creates an empty `guests.json` database if one does not already exist.
-- Preserves an existing `guests.json` database during upgrades.
-- Installs a Windows Scheduled Task named `55 Day Counter Alerts`.
-- Schedules notification checks every day at 9:00 AM.
+- Stops known old `55 Day Counter` app processes.
+- Stops old PowerShell checker processes whose command line contains `55DayCounter.ps1` or `Check-55DayNotifications.ps1`.
+- Removes known scheduled tasks:
+  - `55 Day Counter Alerts`
+  - `55 Day Counter .NET Alerts`
+  - `55DayCounterNetAlerts`
+  - `55DayCounterNetAlertsXml`
+- Removes known Desktop and Start Menu shortcuts.
+- Removes `%LOCALAPPDATA%\55DayCounter`, including old guest data.
+- Installs the self-contained .NET app to `%LOCALAPPDATA%\55DayCounter`.
+- Creates app and uninstall shortcuts.
+- Writes installer details to `%LOCALAPPDATA%\55DayCounter\install.log`.
 
-The installer intentionally does not copy `guests.json` from the pendrive. This prevents test data from being installed on the hotel PC.
+This is intentionally a fresh install. Old `guests.json` data is not preserved.
 
 ## Normal Daily Use
 
-1. Open `55 Day Counter` from the Desktop shortcut.
+1. Open `55 Day Counter`.
 2. Add guests with guest name, room number, and check-in date.
 3. Review the automatically calculated 55th day.
-4. Use `Today's List` to preview overdue guests plus guests checking out today or in the next 5 days.
-5. Use `Download Excel` from the preview if a report is needed.
-6. Use `Complete` or `Cancel Cycle` when a guest cycle ends.
-
-## Backup
-
-Use the Start Menu shortcut `Backup 55 Day Counter Data` to back up `guests.json` into your Documents folder.
+4. Sort by room if needed.
+5. Use `Today's List` to preview overdue guests plus guests checking out today or in the next 5 days.
+6. Use `Export CSV` to save the active guest list in the current visible table order.
+7. Use `Complete` or `Cancel Cycle` when a guest cycle ends. The row is permanently removed after confirmation.
 
 ## Notification Setup
 
-The one-step installer already installs the notification task.
+The app owns notification scheduling. The installer only cleans old scheduled tasks; it does not create a default new one.
 
-Notification behavior:
+1. Open the app.
+2. On first launch, allow the test notification flow.
+3. If the test notification does not appear, let the app open Windows Notification settings and allow notifications.
+4. Click `Schedule`.
+5. Enable daily scheduled notification checks.
+6. Choose the daily notification time.
+7. Save.
 
-- If the app is open, it checks notifications when opened and every hour.
-- If the app is closed, the scheduled task checks once per day at 9:00 AM.
-- Notifications are shown for guests due today or due within the next 5 days.
-- The app sends at most one automatic reminder per guest per day during the warning window.
+The scheduled task name is:
+
+```text
+55 Day Counter Alerts
+```
+
+It runs:
+
+```text
+%LOCALAPPDATA%\55DayCounter\FiftyFiveDayCounter.App.exe --check-notifications
+```
+
+Notification troubleshooting log:
+
+```text
+%LOCALAPPDATA%\55DayCounter\notification-check.log
+```
 
 ## Verify Notifications
+
+Manual alert test:
 
 1. Add a test guest.
 2. Set the check-in date to 50 days ago.
@@ -59,38 +86,45 @@ Notification behavior:
 5. Click `Check Alerts`.
 6. Confirm a Windows notification appears.
 
-To verify the daily scheduled task:
+Scheduled alert test:
 
-1. Open Windows Task Scheduler.
-2. Find `55 Day Counter Alerts`.
-3. Right-click it.
-4. Click `Run`.
-5. Confirm a notification appears if any guest is due today or within the next 5 days.
+1. Click `Schedule`.
+2. Set the daily time 2-3 minutes ahead.
+3. Save and close the app.
+4. Wait for the notification.
+5. Click the notification and confirm the app opens with Today's List.
+6. If no notification appears, check `notification-check.log`.
 
 ## If Notifications Do Not Show
 
 Check:
 
 - Windows notifications are enabled.
-- Focus Assist / Do Not Disturb is off.
-- The guest is due today or within the next 5 days.
-- The guest is not completed or canceled.
+- Do Not Disturb / Focus Assist is off.
+- The guest is overdue, due today, or due within the next 5 days.
 - Task Scheduler contains `55 Day Counter Alerts`.
-- The scheduled task points to `%LOCALAPPDATA%\55DayCounter\Check-55DayNotifications.ps1`.
-
-## Upgrade Later
-
-1. Copy the updated `installer\phase1-bootstrap\55DayCounterInstaller.exe` to a pendrive.
-2. On the hotel PC, double-click `55DayCounterInstaller.exe` again.
-3. The app files will be replaced.
-4. Existing guest data will be preserved.
+- The scheduled task action points to `FiftyFiveDayCounter.App.exe --check-notifications`.
+- `notification-check.log` shows the scheduled check started.
 
 ## Uninstall
 
 1. Open the Start Menu.
 2. Click `Uninstall 55 Day Counter`.
-3. Choose whether to back up the guest database.
-4. The uninstaller removes the scheduled task, shortcuts, and installed app folder.
+3. Confirm removal.
+
+The uninstaller removes:
+
+- installed app folder and local guest data
+- Desktop and Start Menu shortcuts
+- scheduled task `55 Day Counter Alerts`
+- known legacy task names
+- known running .NET or legacy PowerShell app processes
+
+Uninstall log:
+
+```text
+%TEMP%\55DayCounter-uninstall.log
+```
 
 If the Start Menu shortcut is missing, run:
 
@@ -100,18 +134,8 @@ If the Start Menu shortcut is missing, run:
 
 ## Script Install Fallback
 
-If the `.exe` is blocked by company policy, use the script installer instead:
+If the `.exe` bootstrap installer is blocked by company policy:
 
-1. Copy the generated `dist\script-install` folder to the hotel PC after running `scripts\Build-Release.ps1`.
+1. Copy the generated `dist\script-install` folder to the hotel PC.
 2. Double-click `Install-55DayCounter.cmd`.
-3. Follow the same shortcut prompt.
-
-## Rebuild Release Files
-
-From the repository root, run:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1
-```
-
-The generated installer and release package will be created under `dist\`. The repo keeps source files and the current checked-in bootstrap installer separately so generated zip folders do not clutter Git.
+3. Follow the shortcut prompt.
