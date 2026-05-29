@@ -2,7 +2,7 @@ namespace FiftyFiveDayCounter.App;
 
 internal static class ScheduledNotificationService
 {
-    private const string TaskName = "55 Day Counter Alerts";
+    private const string TaskName = ProductInfo.TaskName;
 
     public static string Configure(TimeSpan time, bool enabled)
     {
@@ -11,7 +11,7 @@ internal static class ScheduledNotificationService
             || Path.GetExtension(executablePath).Equals(".dll", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(executablePath).Equals("dotnet.exe", StringComparison.OrdinalIgnoreCase))
         {
-            return "Schedule can be saved after the app is published as an .exe. Run it from dist\\dotnet-app\\FiftyFiveDayCounter.App.exe and try again.";
+            return "Schedule can be saved after the app is published as an .exe. Run it from the published DaysCounter app and try again.";
         }
 
         try
@@ -36,9 +36,10 @@ internal static class ScheduledNotificationService
 
         service.Connect();
         dynamic rootFolder = service.GetFolder("\\");
+        DeleteTaskIfPresent(rootFolder, ProductInfo.LegacyTaskName);
         dynamic task = service.NewTask(0);
 
-        task.RegistrationInfo.Description = "Checks 55 Day Counter guests and shows checkout reminders.";
+        task.RegistrationInfo.Description = "Checks DaysCounter guests and shows checkout reminders.";
         task.Principal.LogonType = 3; // TASK_LOGON_INTERACTIVE_TOKEN
         task.Principal.RunLevel = 0; // TASK_RUNLEVEL_LUA
 
@@ -59,5 +60,17 @@ internal static class ScheduledNotificationService
         action.Arguments = "--check-notifications";
 
         rootFolder.RegisterTaskDefinition(TaskName, task, 6, null, null, 3); // TASK_CREATE_OR_UPDATE, TASK_LOGON_INTERACTIVE_TOKEN
+    }
+
+    private static void DeleteTaskIfPresent(dynamic rootFolder, string taskName)
+    {
+        try
+        {
+            rootFolder.DeleteTask(taskName, 0);
+        }
+        catch
+        {
+            // The legacy task is optional cleanup; absence is the normal case.
+        }
     }
 }

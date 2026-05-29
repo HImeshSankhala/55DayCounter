@@ -10,9 +10,11 @@ public sealed class GuestDialog : Form
     private readonly Label _checkoutValue = new();
     private readonly Label _notifyValue = new();
     private readonly TextBox _notesBox = new();
+    private readonly int _cycleLengthDays;
 
-    public GuestDialog(GuestCycle? guest = null)
+    public GuestDialog(int cycleLengthDays, GuestCycle? guest = null)
     {
+        _cycleLengthDays = cycleLengthDays;
         Text = guest is null ? "Add Guest" : "Edit Guest";
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
@@ -35,7 +37,7 @@ public sealed class GuestDialog : Form
         _checkInPicker.Size = new Size(140, 26);
         _checkInPicker.ValueChanged += (_, _) => UpdateCalculatedDates();
 
-        AddLabel("55th day", 16, 138);
+        AddLabel("Checkout", 16, 138);
         _checkoutValue.Location = new Point(140, 138);
         _checkoutValue.Size = new Size(260, 24);
 
@@ -54,7 +56,7 @@ public sealed class GuestDialog : Form
         {
             if (string.IsNullOrWhiteSpace(_nameBox.Text) || string.IsNullOrWhiteSpace(_roomBox.Text))
             {
-                MessageBox.Show(this, "Guest name and room number are required.", "55 Day Counter");
+                MessageBox.Show(this, "Guest name and room number are required.", ProductInfo.Name);
                 return;
             }
 
@@ -95,7 +97,7 @@ public sealed class GuestDialog : Form
 
     private void UpdateCalculatedDates()
     {
-        var dates = CycleRules.GetCycleDates(_checkInPicker.Value);
+        var dates = CycleRules.GetCycleDates(_checkInPicker.Value, _cycleLengthDays);
         _checkoutValue.Text = dates.CheckOutDate.ToString("dddd, MMM d, yyyy");
         _notifyValue.Text = dates.NotifyDate.ToString("dddd, MMM d, yyyy");
     }

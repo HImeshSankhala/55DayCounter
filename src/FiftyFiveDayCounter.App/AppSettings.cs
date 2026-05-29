@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using FiftyFiveDayCounter.Core;
 
 namespace FiftyFiveDayCounter.App;
 
@@ -9,6 +10,7 @@ internal sealed class AppSettings
     public bool ScheduledNotificationsEnabled { get; set; }
     public bool ScheduleHasBeenConfigured { get; set; }
     public string ScheduledNotificationTime { get; set; } = "09:00";
+    public int CycleLengthDays { get; set; } = CycleRules.DefaultCycleLengthDays;
 
     [JsonIgnore]
     public TimeSpan ScheduledTime
@@ -27,7 +29,9 @@ internal sealed class AppSettings
 
         try
         {
-            return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path)) ?? new AppSettings();
+            var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path)) ?? new AppSettings();
+            settings.CycleLengthDays = Math.Clamp(settings.CycleLengthDays, CycleRules.MinimumCycleLengthDays, CycleRules.MaximumCycleLengthDays);
+            return settings;
         }
         catch
         {

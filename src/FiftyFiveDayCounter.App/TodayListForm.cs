@@ -110,7 +110,7 @@ public sealed class TodayListForm : Form
         using var saveDialog = new SaveFileDialog
         {
             Filter = "Excel files (*.xls)|*.xls",
-            FileName = $"today-list-{DateTime.Today:yyyy-MM-dd}.xls"
+            FileName = $"dayscounter-today-list-{DateTime.Today:yyyy-MM-dd}.xls"
         };
 
         if (saveDialog.ShowDialog(this) != DialogResult.OK)

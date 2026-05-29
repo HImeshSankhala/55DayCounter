@@ -11,6 +11,7 @@ public sealed class MainForm : Form
     private readonly DataGridView _grid = new();
     private readonly TextBox _searchBox = new();
     private readonly ComboBox _statusFilter = new();
+    private readonly NumericUpDown _cycleLengthInput = new();
     private readonly Label _summaryLabel = new();
     private readonly NotifyIcon _notifyIcon = new();
     private readonly System.Windows.Forms.Timer _notificationTimer = new();
@@ -19,7 +20,7 @@ public sealed class MainForm : Form
     public MainForm(bool openTodayListOnShown = false)
     {
         _openTodayListOnShown = openTodayListOnShown;
-        Text = "55 Day Counter";
+        Text = ProductInfo.Name;
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(1050, 640);
         Size = new Size(1180, 720);
@@ -36,7 +37,7 @@ public sealed class MainForm : Form
         {
             _notifyIcon.Icon = SystemIcons.Information;
         }
-        _notifyIcon.Text = "55 Day Counter";
+        _notifyIcon.Text = ProductInfo.Name;
         _notifyIcon.Visible = true;
         _notifyIcon.BalloonTipClicked += (_, _) => ShowTodaysList();
 
@@ -47,6 +48,7 @@ public sealed class MainForm : Form
         _settings = AppSettings.Load();
         _repository = new JsonGuestRepository(AppPaths.ResolveDataPath());
         _guests = _repository.Load().ToList();
+        RecalculateOperationalGuestDates();
         if (_guests.Count == 0)
         {
             _repository.Save(_guests);
@@ -67,7 +69,7 @@ public sealed class MainForm : Form
 
         var title = new Label
         {
-            Text = "55 Day Counter",
+            Text = ProductInfo.Name,
             Font = new Font("Segoe UI Semibold", 17),
             Location = new Point(14, 12),
             Size = new Size(300, 34)
@@ -75,7 +77,7 @@ public sealed class MainForm : Form
 
         var help = new Label
         {
-            Text = "Phase 2 .NET preview. Check-in is day 1; 55th day is check-in + 54 days.",
+            Text = "Set the cycle length once for this hotel. Check-in is counted as day 1.",
             Location = new Point(16, 52),
             Size = new Size(900, 24)
         };
@@ -97,6 +99,15 @@ public sealed class MainForm : Form
         _statusFilter.SelectedIndex = 0;
         _statusFilter.SelectedIndexChanged += (_, _) => RefreshGrid();
 
+        var cycleLabel = new Label { Text = "Cycle days", Location = new Point(556, 116), AutoSize = true };
+        _cycleLengthInput.Location = new Point(646, 112);
+        _cycleLengthInput.Size = new Size(72, 26);
+        _cycleLengthInput.Minimum = CycleRules.MinimumCycleLengthDays;
+        _cycleLengthInput.Maximum = CycleRules.MaximumCycleLengthDays;
+        _cycleLengthInput.Value = _settings.CycleLengthDays;
+        var saveCycleButton = new Button { Text = "Save Cycle", Location = new Point(728, 110), Size = new Size(98, 30) };
+        saveCycleButton.Click += (_, _) => SaveCycleLength();
+
         var buttons = new FlowLayoutPanel
         {
             Location = new Point(16, 148),
@@ -117,7 +128,7 @@ public sealed class MainForm : Form
         AddButton(buttons, "Today's List", (_, _) => ShowTodaysList(), 110);
         AddButton(buttons, "Export CSV", (_, _) => ExportCsv(), 105);
 
-        topPanel.Controls.AddRange([title, help, _summaryLabel, searchLabel, _searchBox, filterLabel, _statusFilter, buttons]);
+        topPanel.Controls.AddRange([title, help, _summaryLabel, searchLabel, _searchBox, filterLabel, _statusFilter, cycleLabel, _cycleLengthInput, saveCycleButton, buttons]);
 
         _grid.Dock = DockStyle.Fill;
         _grid.AllowUserToAddRows = false;
@@ -144,7 +155,7 @@ public sealed class MainForm : Form
         AddColumn("GuestName", "Guest Name", 170, true);
         AddColumn("RoomNumber", "Room", 75, true);
         AddColumn("CheckInDate", "Check-in", 105, true);
-        AddColumn("CheckOutDate", "55th Day", 105, true);
+        AddColumn("CheckOutDate", "Checkout", 105, true);
         AddColumn("NotifyDate", "Notify", 105, true);
         AddColumn("DaysLeft", "Days Left", 95, true);
         AddColumn("Notes", "Notes", 240, true);
@@ -266,6 +277,43 @@ public sealed class MainForm : Form
         _summaryLabel.Text = $"Active: {active}    Due soon: {dueSoon}    Due today: {dueToday}    Overdue: {overdue}    Total records: {_guests.Count}";
     }
 
+    private void SaveCycleLength()
+    {
+        var newCycleLength = (int)_cycleLengthInput.Value;
+        if (newCycleLength == _settings.CycleLengthDays)
+        {
+            MessageBox.Show(this, $"Cycle length is already set to {newCycleLength} day(s).", ProductInfo.Name);
+            return;
+        }
+
+        var result = MessageBox.Show(
+            this,
+            $"Change the hotel cycle length from {_settings.CycleLengthDays} to {newCycleLength} day(s)? Active guest checkout and notify dates will be recalculated from their check-in dates.",
+            "Confirm Cycle Length",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (result != DialogResult.Yes)
+        {
+            _cycleLengthInput.Value = _settings.CycleLengthDays;
+            return;
+        }
+
+        _settings.CycleLengthDays = newCycleLength;
+        _settings.Save();
+        RecalculateOperationalGuestDates();
+        SaveAndRefresh();
+        MessageBox.Show(this, $"Cycle length saved as {newCycleLength} day(s).", ProductInfo.Name);
+    }
+
+    private void RecalculateOperationalGuestDates()
+    {
+        foreach (var guest in _guests)
+        {
+            CycleRules.RecalculateCycleDates(guest, _settings.CycleLengthDays);
+        }
+    }
+
     private void CheckAlerts(bool manual)
     {
         var today = DateTime.Today;
@@ -279,12 +327,12 @@ public sealed class MainForm : Form
         {
             if (manual)
             {
-                MessageBox.Show(this, "No overdue guests or guests due in the next 5 days.", "55 Day Counter");
+                MessageBox.Show(this, "No overdue guests or guests due in the next 5 days.", ProductInfo.Name);
             }
             return;
         }
 
-        _notifyIcon.BalloonTipTitle = "55 Day Counter";
+        _notifyIcon.BalloonTipTitle = ProductInfo.Name;
         _notifyIcon.BalloonTipText = NotificationRunner.FormatNotificationList(dueGuests, today);
         _notifyIcon.ShowBalloonTip(8000);
 
@@ -292,7 +340,7 @@ public sealed class MainForm : Form
 
     private void ShowTestNotification()
     {
-        _notifyIcon.BalloonTipTitle = "55 Day Counter Test";
+        _notifyIcon.BalloonTipTitle = $"{ProductInfo.Name} Test";
         _notifyIcon.BalloonTipText = "Notifications are working. Click this notification to open Today's List.";
         _notifyIcon.ShowBalloonTip(8000);
     }
@@ -326,7 +374,7 @@ public sealed class MainForm : Form
 
         var result = MessageBox.Show(
             this,
-            "55 Day Counter needs Windows notifications for checkout reminders. A test notification will be sent now. If you do not see it, open Windows Notification settings and allow notifications for this app.",
+            $"{ProductInfo.Name} needs Windows notifications for checkout reminders. A test notification will be sent now. If you do not see it, open Windows Notification settings and allow notifications for this app.",
             "Enable Notifications",
             MessageBoxButtons.OKCancel,
             MessageBoxIcon.Information);
@@ -363,7 +411,7 @@ public sealed class MainForm : Form
         }
         catch
         {
-            MessageBox.Show("Open Windows Settings > System > Notifications and allow notifications for 55 Day Counter.", "55 Day Counter");
+            MessageBox.Show($"Open Windows Settings > System > Notifications and allow notifications for {ProductInfo.Name}.", ProductInfo.Name);
         }
     }
 
@@ -411,7 +459,7 @@ public sealed class MainForm : Form
 
     private void AddGuest()
     {
-        using var dialog = new GuestDialog();
+        using var dialog = new GuestDialog(_settings.CycleLengthDays);
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
@@ -420,7 +468,7 @@ public sealed class MainForm : Form
         var conflict = CycleRules.FindActiveRoomConflict(_guests, dialog.RoomNumber, 0, DateTime.Today);
         if (conflict is not null && MessageBox.Show(this,
                 $"Room {dialog.RoomNumber} already has an active cycle for {conflict.GuestName}. Add this guest anyway?",
-                "55 Day Counter",
+                ProductInfo.Name,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning) != DialogResult.Yes)
         {
@@ -428,7 +476,7 @@ public sealed class MainForm : Form
         }
 
         var nextId = _guests.Count == 0 ? 1 : _guests.Max(g => g.Id) + 1;
-        _guests.Add(CycleRules.CreateGuest(nextId, dialog.GuestName, dialog.RoomNumber, dialog.CheckInDate, dialog.Notes));
+        _guests.Add(CycleRules.CreateGuest(nextId, dialog.GuestName, dialog.RoomNumber, dialog.CheckInDate, dialog.Notes, _settings.CycleLengthDays));
         SaveAndRefresh();
     }
 
@@ -437,11 +485,11 @@ public sealed class MainForm : Form
         var guest = SelectedGuest();
         if (guest is null)
         {
-            MessageBox.Show(this, "Select a guest first.", "55 Day Counter");
+            MessageBox.Show(this, "Select a guest first.", ProductInfo.Name);
             return;
         }
 
-        using var dialog = new GuestDialog(guest);
+        using var dialog = new GuestDialog(_settings.CycleLengthDays, guest);
         if (dialog.ShowDialog(this) != DialogResult.OK)
         {
             return;
@@ -450,14 +498,14 @@ public sealed class MainForm : Form
         var conflict = CycleRules.FindActiveRoomConflict(_guests, dialog.RoomNumber, guest.Id, DateTime.Today);
         if (conflict is not null && MessageBox.Show(this,
                 $"Room {dialog.RoomNumber} already has an active cycle for {conflict.GuestName}. Save this edit anyway?",
-                "55 Day Counter",
+                ProductInfo.Name,
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Warning) != DialogResult.Yes)
         {
             return;
         }
 
-        CycleRules.ApplyEditableFields(guest, dialog.GuestName, dialog.RoomNumber, dialog.CheckInDate, dialog.Notes);
+        CycleRules.ApplyEditableFields(guest, dialog.GuestName, dialog.RoomNumber, dialog.CheckInDate, dialog.Notes, _settings.CycleLengthDays);
         SaveAndRefresh();
     }
 
@@ -466,7 +514,7 @@ public sealed class MainForm : Form
         var guest = SelectedGuest();
         if (guest is null)
         {
-            MessageBox.Show(this, "Select a guest first.", "55 Day Counter");
+            MessageBox.Show(this, "Select a guest first.", ProductInfo.Name);
             return;
         }
 
@@ -513,7 +561,7 @@ public sealed class MainForm : Form
             Filter = "CSV files (*.csv)|*.csv",
             DefaultExt = "csv",
             AddExtension = true,
-            FileName = $"55-day-counter-active-guests-{DateTime.Today:yyyy-MM-dd}.csv"
+            FileName = $"dayscounter-active-guests-{DateTime.Today:yyyy-MM-dd}.csv"
         };
 
         if (saveDialog.ShowDialog(this) != DialogResult.OK)
@@ -549,7 +597,7 @@ public sealed class MainForm : Form
             writer.WriteLine(string.Join(",", values.Select(EscapeCsv)));
         }
 
-        MessageBox.Show(this, "Export complete.", "55 Day Counter");
+        MessageBox.Show(this, "Export complete.", ProductInfo.Name);
     }
 
     private static string EscapeCsv(string value)

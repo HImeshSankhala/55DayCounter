@@ -2,11 +2,22 @@ namespace FiftyFiveDayCounter.Core;
 
 public static class CycleRules
 {
+    public const int DefaultCycleLengthDays = 55;
+    public const int DefaultNotificationLeadDays = 5;
+    public const int MinimumCycleLengthDays = 1;
+    public const int MaximumCycleLengthDays = 365;
+
     public static CycleDates GetCycleDates(DateTime checkInDate)
     {
+        return GetCycleDates(checkInDate, DefaultCycleLengthDays);
+    }
+
+    public static CycleDates GetCycleDates(DateTime checkInDate, int cycleLengthDays)
+    {
         var checkIn = checkInDate.Date;
-        var checkOut = checkIn.AddDays(54);
-        return new CycleDates(checkOut, checkOut.AddDays(-5));
+        var normalizedCycleLength = Math.Clamp(cycleLengthDays, MinimumCycleLengthDays, MaximumCycleLengthDays);
+        var checkOut = checkIn.AddDays(normalizedCycleLength - 1);
+        return new CycleDates(checkOut, checkOut.AddDays(-DefaultNotificationLeadDays));
     }
 
     public static string GetDisplayStatus(GuestCycle guest, DateTime today)
@@ -74,9 +85,9 @@ public static class CycleRules
         return $"{daysLeft} day(s) left";
     }
 
-    public static GuestCycle CreateGuest(int id, string guestName, string roomNumber, DateTime checkInDate, string notes)
+    public static GuestCycle CreateGuest(int id, string guestName, string roomNumber, DateTime checkInDate, string notes, int cycleLengthDays = DefaultCycleLengthDays)
     {
-        var dates = GetCycleDates(checkInDate);
+        var dates = GetCycleDates(checkInDate, cycleLengthDays);
         return new GuestCycle
         {
             Id = id,
@@ -90,15 +101,26 @@ public static class CycleRules
         };
     }
 
-    public static void ApplyEditableFields(GuestCycle guest, string guestName, string roomNumber, DateTime checkInDate, string notes)
+    public static void ApplyEditableFields(GuestCycle guest, string guestName, string roomNumber, DateTime checkInDate, string notes, int cycleLengthDays = DefaultCycleLengthDays)
     {
-        var dates = GetCycleDates(checkInDate);
+        var dates = GetCycleDates(checkInDate, cycleLengthDays);
         guest.GuestName = guestName.Trim();
         guest.RoomNumber = roomNumber.Trim();
         guest.CheckInDate = checkInDate.Date;
         guest.CheckOutDate = dates.CheckOutDate;
         guest.NotifyDate = dates.NotifyDate;
         guest.Notes = notes.Trim();
+        if (guest.Status is not CycleStatus.Completed and not CycleStatus.Canceled)
+        {
+            guest.Status = CycleStatus.Active;
+        }
+    }
+
+    public static void RecalculateCycleDates(GuestCycle guest, int cycleLengthDays)
+    {
+        var dates = GetCycleDates(guest.CheckInDate, cycleLengthDays);
+        guest.CheckOutDate = dates.CheckOutDate;
+        guest.NotifyDate = dates.NotifyDate;
         if (guest.Status is not CycleStatus.Completed and not CycleStatus.Canceled)
         {
             guest.Status = CycleStatus.Active;

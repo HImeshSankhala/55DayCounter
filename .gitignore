@@ -13,6 +13,10 @@ obj/
 55DayCounter_Release*.zip
 55DayCounter_USB_Package/
 55DayCounter_USB_Package.zip
+DaysCounter_EXE_Payload/
+DaysCounter_EXE_Payload.zip
+DaysCounter_Release*/
+DaysCounter_Release*.zip
 
 # Runtime and local logs/temp files
 *.tmp

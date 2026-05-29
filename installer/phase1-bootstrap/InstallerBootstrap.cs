@@ -5,7 +5,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Windows.Forms;
 
-namespace FiftyFiveDayCounterInstaller
+namespace DaysCounterInstaller
 {
     internal static class Program
     {
@@ -13,7 +13,8 @@ namespace FiftyFiveDayCounterInstaller
         private static int Main()
         {
             Application.EnableVisualStyles();
-            string tempDir = Path.Combine(Path.GetTempPath(), "55DayCounterInstaller-" + Guid.NewGuid().ToString("N"));
+            const string productName = "DaysCounter";
+            string tempDir = Path.Combine(Path.GetTempPath(), "DaysCounterInstaller-" + Guid.NewGuid().ToString("N"));
 
             try
             {
@@ -23,7 +24,7 @@ namespace FiftyFiveDayCounterInstaller
                 {
                     if (payload == null)
                     {
-                        MessageBox.Show("Installer payload is missing.", "55 Day Counter Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("Installer payload is missing.", productName + " Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return 1;
                     }
 
@@ -36,10 +37,10 @@ namespace FiftyFiveDayCounterInstaller
                     ZipFile.ExtractToDirectory(zipPath, tempDir);
                 }
 
-                string installerScript = Path.Combine(tempDir, "Install-55DayCounter.ps1");
+                string installerScript = Path.Combine(tempDir, "Install-DaysCounter.ps1");
                 if (!File.Exists(installerScript))
                 {
-                    MessageBox.Show("Install-55DayCounter.ps1 was not found in the installer payload.", "55 Day Counter Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    MessageBox.Show("Install-DaysCounter.ps1 was not found in the installer payload.", productName + " Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return 1;
                 }
 
@@ -54,17 +55,17 @@ namespace FiftyFiveDayCounterInstaller
                     process.WaitForExit();
                     if (process.ExitCode != 0)
                     {
-                        MessageBox.Show("The installer did not finish successfully. Exit code: " + process.ExitCode, "55 Day Counter Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show("The installer did not finish successfully. Exit code: " + process.ExitCode, productName + " Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return process.ExitCode;
                     }
                 }
 
-                MessageBox.Show("55 Day Counter was installed successfully.", "55 Day Counter Installer", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(productName + " was installed successfully.", productName + " Installer", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return 0;
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "55 Day Counter Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(ex.Message, productName + " Installer", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return 1;
             }
             finally

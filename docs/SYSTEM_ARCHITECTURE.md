@@ -1,13 +1,15 @@
-# 55 Day Counter System Architecture
+# DaysCounter System Architecture
 
 ## Purpose
 
-55 Day Counter is a local Windows desktop app for tracking hotel guest 55-day cycles. Staff enter guest name, room number, and check-in date. Check-in counts as day 1:
+DaysCounter is a local Windows desktop app for tracking hotel guest cycle deadlines. Staff enter guest name, room number, and check-in date. The hotel sets the cycle length globally:
 
 ```text
-55th day = check-in date + 54 days
-notification date = 55th day - 5 days
+checkout date = check-in date + (cycle days - 1)
+notification date = checkout date - 5 days
 ```
+
+The default cycle length is 55 days, but it can be changed to values such as 14 or 30 days from the main screen.
 
 ## Product Architecture
 
@@ -30,48 +32,50 @@ The release build publishes a self-contained `win-x64` app so hotel PCs do not n
 Install location:
 
 ```text
-%LOCALAPPDATA%\55DayCounter
+%LOCALAPPDATA%\DaysCounter
 ```
 
 Main executable:
 
 ```text
-FiftyFiveDayCounter.App.exe
+DaysCounter.App.exe
 ```
 
 Installer behavior:
 
-- removes known old 55 Day Counter folders, shortcuts, scheduled tasks, and processes
+- removes known current and old 55 Day Counter folders, shortcuts, scheduled tasks, and processes
 - removes old local guest data for a fresh install
 - copies the self-contained .NET app
 - creates Desktop and Start Menu shortcuts
 - installs an uninstaller shortcut
-- logs to `%LOCALAPPDATA%\55DayCounter\install.log`
+- logs to `%LOCALAPPDATA%\DaysCounter\install.log`
 
 Uninstaller behavior:
 
 - removes installed app files and local data
-- removes known 55 Day Counter shortcuts
+- removes known DaysCounter and 55 Day Counter shortcuts
 - removes current and legacy scheduled task names
 - stops known .NET and legacy PowerShell app processes
-- logs to `%TEMP%\55DayCounter-uninstall.log`
+- logs to `%TEMP%\DaysCounter-uninstall.log`
 
 ## Component Flow
 
 ```mermaid
 flowchart TD
-    User["Front Desk User"] --> App["FiftyFiveDayCounter.App.exe"]
+    User["Front Desk User"] --> App["DaysCounter.App.exe"]
+    App --> Settings["settings.json"]
     App --> Data["guests.json"]
     App --> CSV["CSV Export"]
     App --> Today["Today's List"]
     App --> Notify["Windows Notifications"]
     App --> Schedule["Schedule Button"]
-    Schedule --> Task["Task Scheduler: 55 Day Counter Alerts"]
-    Task --> Check["FiftyFiveDayCounter.App.exe --check-notifications"]
+    Schedule --> Task["Task Scheduler: DaysCounter Alerts"]
+    Task --> Check["DaysCounter.App.exe --check-notifications"]
+    Check --> Settings
     Check --> Data
     Check --> Notify
     Notify --> Click["Notification Click"]
-    Click --> TodayOpen["FiftyFiveDayCounter.App.exe --today-list"]
+    Click --> TodayOpen["DaysCounter.App.exe --today-list"]
 ```
 
 ## Data Storage
@@ -79,10 +83,16 @@ flowchart TD
 Guest data is stored locally as JSON:
 
 ```text
-%LOCALAPPDATA%\55DayCounter\guests.json
+%LOCALAPPDATA%\DaysCounter\guests.json
 ```
 
-Each record contains:
+Settings are stored in:
+
+```text
+%LOCALAPPDATA%\DaysCounter\settings.json
+```
+
+Guest records contain:
 
 ```text
 Id
@@ -97,18 +107,24 @@ Notes
 
 Dates are local calendar dates. Complete and Cancel permanently remove a guest record after confirmation.
 
+## Cycle Length
+
+`settings.json` stores `CycleLengthDays`. The app clamps it between 1 and 365 days.
+
+When the hotel changes the cycle length, active guest checkout and notification dates are recalculated from each guest's check-in date. Check-in always counts as day 1.
+
 ## Notification Architecture
 
 The app has one scheduled notification task:
 
 ```text
-55 Day Counter Alerts
+DaysCounter Alerts
 ```
 
 The task action is:
 
 ```text
-%LOCALAPPDATA%\55DayCounter\FiftyFiveDayCounter.App.exe --check-notifications
+%LOCALAPPDATA%\DaysCounter\DaysCounter.App.exe --check-notifications
 ```
 
 The installed app owns task creation through the `Schedule` button. The installer only removes old tasks during cleanup and does not create a default notification schedule.
@@ -118,7 +134,7 @@ The first app launch sends a test notification and can open Windows Notification
 Scheduled check troubleshooting log:
 
 ```text
-%LOCALAPPDATA%\55DayCounter\notification-check.log
+%LOCALAPPDATA%\DaysCounter\notification-check.log
 ```
 
 ## Release Outputs
@@ -126,9 +142,9 @@ Scheduled check troubleshooting log:
 `scripts/Build-Release.ps1` creates:
 
 ```text
-dist\dotnet-app\FiftyFiveDayCounter.App.exe
-dist\55DayCounterInstaller.exe
-dist\55DayCounterInstaller.sha256
+dist\dotnet-app\DaysCounter.App.exe
+dist\DaysCounterInstaller.exe
+dist\DaysCounterInstaller.sha256
 dist\release\
 dist\script-install\
 ```
@@ -136,7 +152,7 @@ dist\script-install\
 The installer executable is also copied to:
 
 ```text
-installer\phase1-bootstrap\55DayCounterInstaller.exe
+installer\phase1-bootstrap\DaysCounterInstaller.exe
 ```
 
 ## Operational Notes

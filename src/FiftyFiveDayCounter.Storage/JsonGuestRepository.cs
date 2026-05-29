@@ -6,7 +6,7 @@ namespace FiftyFiveDayCounter.Storage;
 
 public sealed class JsonGuestRepository
 {
-    private const string MutexName = "55DayCounterDataLock";
+    private const string MutexName = "DaysCounterDataLock";
     private readonly string _dataPath;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
@@ -105,8 +105,8 @@ public sealed class JsonGuestRepository
     private static GuestCycle ReadGuest(JsonElement item)
     {
         var checkIn = ReadDate(item, "CheckInDate", DateTime.Today);
-        var checkOut = ReadDate(item, "CheckOutDate", checkIn.AddDays(54));
-        var notifyDate = ReadDate(item, "NotifyDate", checkOut.AddDays(-5));
+        var checkOut = ReadDate(item, "CheckOutDate", CycleRules.GetCycleDates(checkIn).CheckOutDate);
+        var notifyDate = ReadDate(item, "NotifyDate", checkOut.AddDays(-CycleRules.DefaultNotificationLeadDays));
 
         return new GuestCycle
         {

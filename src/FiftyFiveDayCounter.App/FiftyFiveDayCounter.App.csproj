@@ -11,11 +11,12 @@
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
-    <ApplicationIcon>..\..\assets\55DayCounter.ico</ApplicationIcon>
+    <AssemblyName>DaysCounter.App</AssemblyName>
+    <ApplicationIcon>..\..\assets\DaysCounter.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="..\..\assets\55DayCounter.ico" Link="55DayCounter.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\..\assets\DaysCounter.ico" Link="DaysCounter.ico" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

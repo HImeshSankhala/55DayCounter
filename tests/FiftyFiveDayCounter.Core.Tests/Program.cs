@@ -2,8 +2,10 @@ using FiftyFiveDayCounter.Core;
 
 var today = new DateTime(2026, 5, 23);
 
-AssertEqual(new DateTime(2026, 5, 23), CycleRules.GetCycleDates(new DateTime(2026, 3, 30)).CheckOutDate, "55th day counts check-in as day 1");
-AssertEqual(new DateTime(2026, 5, 18), CycleRules.GetCycleDates(new DateTime(2026, 3, 30)).NotifyDate, "notify date is 5 days before 55th day");
+AssertEqual(new DateTime(2026, 5, 23), CycleRules.GetCycleDates(new DateTime(2026, 3, 30)).CheckOutDate, "default cycle counts check-in as day 1");
+AssertEqual(new DateTime(2026, 5, 18), CycleRules.GetCycleDates(new DateTime(2026, 3, 30)).NotifyDate, "notify date is 5 days before checkout");
+AssertEqual(new DateTime(2026, 4, 12), CycleRules.GetCycleDates(new DateTime(2026, 3, 30), 14).CheckOutDate, "custom 14-day cycle counts check-in as day 1");
+AssertEqual(new DateTime(2026, 4, 28), CycleRules.GetCycleDates(new DateTime(2026, 3, 30), 30).CheckOutDate, "custom 30-day cycle counts check-in as day 1");
 
 AssertStatus(CycleStatus.Active, today.AddDays(6));
 AssertStatus(CycleStatus.DueSoon, today.AddDays(5));

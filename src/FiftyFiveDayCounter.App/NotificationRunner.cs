@@ -11,8 +11,14 @@ internal static class NotificationRunner
         try
         {
             WriteLog("Scheduled check started.");
+            var settings = AppSettings.Load();
             var repository = new JsonGuestRepository(AppPaths.ResolveDataPath());
             var guests = repository.Load().ToList();
+            foreach (var guest in guests)
+            {
+                CycleRules.RecalculateCycleDates(guest, settings.CycleLengthDays);
+            }
+
             var today = DateTime.Today;
             var dueGuests = guests
                 .Where(g => CycleRules.IsNotificationEligible(g, today))
@@ -29,9 +35,9 @@ internal static class NotificationRunner
             using var notifyIcon = new NotifyIcon
             {
                 Icon = File.Exists(AppPaths.ResolveIconPath()) ? new Icon(AppPaths.ResolveIconPath()) : SystemIcons.Information,
-                Text = "55 Day Counter",
+                Text = ProductInfo.Name,
                 Visible = true,
-                BalloonTipTitle = "55 Day Counter",
+                BalloonTipTitle = ProductInfo.Name,
                 BalloonTipText = FormatNotificationList(dueGuests, today)
             };
 

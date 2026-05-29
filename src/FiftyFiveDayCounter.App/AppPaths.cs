@@ -27,7 +27,7 @@ internal static class AppPaths
 
     public static string ResolveIconPath()
     {
-        return Path.Combine(AppContext.BaseDirectory, "55DayCounter.ico");
+        return Path.Combine(AppContext.BaseDirectory, ProductInfo.IconFileName);
     }
 
     public static string ResolveNotificationLogPath()
@@ -42,7 +42,7 @@ internal static class AppPaths
 
     private static string ResolveAppDataDirectory()
     {
-        var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "55DayCounter");
+        var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), ProductInfo.AppDataFolder);
         Directory.CreateDirectory(appData);
         return appData;
     }

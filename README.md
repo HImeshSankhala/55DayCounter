@@ -1,8 +1,13 @@
-# 55 Day Counter
+# DaysCounter
 
-Windows desktop app for tracking hotel guest 55-day cycles.
+Windows desktop app for tracking hotel guest cycle deadlines.
 
-Check-in is counted as day 1, so the 55th day is `check-in date + 54 days`.
+Each hotel can set its own cycle length, such as 14, 30, or 55 days. Check-in is counted as day 1, so checkout is calculated as:
+
+```text
+checkout date = check-in date + (cycle days - 1)
+notification date = checkout date - 5 days
+```
 
 ## Product Status
 
@@ -41,8 +46,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Build-Release.
 The release build:
 
 - publishes a self-contained `win-x64` .NET app to `dist\dotnet-app`
-- creates `dist\55DayCounterInstaller.exe`
-- refreshes `installer\phase1-bootstrap\55DayCounterInstaller.exe`
+- creates `dist\DaysCounterInstaller.exe`
+- refreshes `installer\phase1-bootstrap\DaysCounterInstaller.exe`
 - creates `dist\release` for pendrive delivery
 - creates `dist\script-install` as a fallback folder
 
@@ -51,31 +56,28 @@ The release build:
 The installer copies the .NET app to:
 
 ```text
-%LOCALAPPDATA%\55DayCounter
+%LOCALAPPDATA%\DaysCounter
 ```
 
-Before installing, it removes known old 55 Day Counter folders, shortcuts, scheduled tasks, running app processes, and old guest data. This is intentionally a fresh install.
+Before installing, it removes known old DaysCounter and 55 Day Counter folders, shortcuts, scheduled tasks, running app processes, and old guest data. This is intentionally a fresh install.
 
-The installed app owns notification scheduling through the `Schedule` button. The single scheduled task name is:
+The installed app owns notification scheduling through the `Schedule` button. The scheduled task name is:
 
 ```text
-55 Day Counter Alerts
+DaysCounter Alerts
 ```
 
 It runs:
 
 ```text
-FiftyFiveDayCounter.App.exe --check-notifications
+DaysCounter.App.exe --check-notifications
 ```
-
-## Data Policy
-
-Runtime guest data is stored as `guests.json` in the installed app folder. Local working data is kept under `local-data/` and ignored by Git. Only sanitized examples such as `samples/guests.sample.json` should be committed.
 
 ## Features
 
+- Set the hotel cycle length from the main screen.
 - Add and edit guest cycles.
-- Automatically calculate the 55th day and notification date.
+- Automatically calculate checkout and notification dates.
 - Search and filter records by status.
 - Sort the table, including numeric room sorting.
 - Color-code active, due soon, due today, and overdue guests.

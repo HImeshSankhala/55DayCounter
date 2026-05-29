@@ -7,11 +7,11 @@ $Publish = Join-Path $Dist "dotnet-app"
 $Payload = Join-Path $Dist "payload-temp"
 $Release = Join-Path $Dist "release"
 $ScriptInstall = Join-Path $Dist "script-install"
-$PayloadZip = Join-Path $Dist "55DayCounter_EXE_Payload.zip"
-$Installer = Join-Path $Dist "55DayCounterInstaller.exe"
-$CommittedInstaller = Join-Path $Root "installer\phase1-bootstrap\55DayCounterInstaller.exe"
+$PayloadZip = Join-Path $Dist "DaysCounter_EXE_Payload.zip"
+$Installer = Join-Path $Dist "DaysCounterInstaller.exe"
+$CommittedInstaller = Join-Path $Root "installer\phase1-bootstrap\DaysCounterInstaller.exe"
 $Compiler = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
-$Icon = Join-Path $Root "assets\55DayCounter.ico"
+$Icon = Join-Path $Root "assets\DaysCounter.ico"
 $Bootstrap = Join-Path $Root "installer\phase1-bootstrap\InstallerBootstrap.cs"
 $Project = Join-Path $Root "src\FiftyFiveDayCounter.App\FiftyFiveDayCounter.App.csproj"
 
@@ -27,10 +27,20 @@ New-Item -ItemType Directory -Path $Payload | Out-Null
 New-Item -ItemType Directory -Path $Release | Out-Null
 New-Item -ItemType Directory -Path $ScriptInstall | Out-Null
 
+dotnet restore $Project `
+    -r win-x64 `
+    --ignore-failed-sources `
+    -p:NuGetAudit=false
+
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 dotnet publish $Project `
     -c Release `
     -r win-x64 `
     --self-contained true `
+    --no-restore `
     -p:PublishSingleFile=false `
     -o $Publish
 
@@ -42,10 +52,10 @@ Copy-Item -Path (Join-Path $Publish "*") -Destination $Payload -Recurse -Force
 Copy-Item -Path (Join-Path $Publish "*") -Destination $ScriptInstall -Recurse -Force
 
 $SupportFiles = @(
-    @{ Source = "installer\phase1-bootstrap\Install-55DayCounter.ps1"; Destination = "Install-55DayCounter.ps1" },
-    @{ Source = "installer\phase1-bootstrap\Install-55DayCounter.cmd"; Destination = "Install-55DayCounter.cmd" },
-    @{ Source = "installer\phase1-bootstrap\Uninstall-55DayCounter.ps1"; Destination = "Uninstall-55DayCounter.ps1" },
-    @{ Source = "installer\phase1-bootstrap\Uninstall-55DayCounter.cmd"; Destination = "Uninstall-55DayCounter.cmd" },
+    @{ Source = "installer\phase1-bootstrap\Install-DaysCounter.ps1"; Destination = "Install-DaysCounter.ps1" },
+    @{ Source = "installer\phase1-bootstrap\Install-DaysCounter.cmd"; Destination = "Install-DaysCounter.cmd" },
+    @{ Source = "installer\phase1-bootstrap\Uninstall-DaysCounter.ps1"; Destination = "Uninstall-DaysCounter.ps1" },
+    @{ Source = "installer\phase1-bootstrap\Uninstall-DaysCounter.cmd"; Destination = "Uninstall-DaysCounter.cmd" },
     @{ Source = "VERSION"; Destination = "VERSION" },
     @{ Source = "README.md"; Destination = "README.md" },
     @{ Source = "docs\INSTALLATION.md"; Destination = "INSTALLATION.md" },
@@ -83,11 +93,11 @@ Copy-Item -LiteralPath $Installer -Destination $Release -Force
 Copy-Item -LiteralPath $Installer -Destination $CommittedInstaller -Force
 Copy-Item -LiteralPath (Join-Path $Root "README.md") -Destination $Release -Force
 Copy-Item -LiteralPath (Join-Path $Root "docs\INSTALLATION.md") -Destination (Join-Path $Release "INSTALLATION.md") -Force
-Copy-Item -LiteralPath (Join-Path $Root "installer\phase1-bootstrap\Uninstall-55DayCounter.cmd") -Destination $Release -Force
-Copy-Item -LiteralPath (Join-Path $Root "installer\phase1-bootstrap\Uninstall-55DayCounter.ps1") -Destination $Release -Force
+Copy-Item -LiteralPath (Join-Path $Root "installer\phase1-bootstrap\Uninstall-DaysCounter.cmd") -Destination $Release -Force
+Copy-Item -LiteralPath (Join-Path $Root "installer\phase1-bootstrap\Uninstall-DaysCounter.ps1") -Destination $Release -Force
 
 $hash = Get-FileHash -Algorithm SHA256 -LiteralPath $Installer
-$hash.Hash | Set-Content -LiteralPath (Join-Path $Dist "55DayCounterInstaller.sha256") -Encoding ASCII
+$hash.Hash | Set-Content -LiteralPath (Join-Path $Dist "DaysCounterInstaller.sha256") -Encoding ASCII
 
 Remove-Item -LiteralPath $PayloadZip -Force
 Remove-Item -LiteralPath $Payload -Recurse -Force
