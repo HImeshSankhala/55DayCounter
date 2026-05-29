@@ -7,15 +7,18 @@ public sealed class MainForm : Form
 {
     private readonly JsonGuestRepository _repository;
     private readonly List<GuestCycle> _guests;
+    private readonly AppSettings _settings;
     private readonly DataGridView _grid = new();
     private readonly TextBox _searchBox = new();
     private readonly ComboBox _statusFilter = new();
     private readonly Label _summaryLabel = new();
     private readonly NotifyIcon _notifyIcon = new();
     private readonly System.Windows.Forms.Timer _notificationTimer = new();
+    private readonly bool _openTodayListOnShown;
 
-    public MainForm()
+    public MainForm(bool openTodayListOnShown = false)
     {
+        _openTodayListOnShown = openTodayListOnShown;
         Text = "55 Day Counter";
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(1050, 640);
@@ -23,7 +26,7 @@ public sealed class MainForm : Form
         Font = new Font("Segoe UI", 10);
         AutoScaleMode = AutoScaleMode.Dpi;
 
-        var iconPath = Path.Combine(AppContext.BaseDirectory, "55DayCounter.ico");
+        var iconPath = AppPaths.ResolveIconPath();
         if (File.Exists(iconPath))
         {
             Icon = new Icon(iconPath);
@@ -41,7 +44,8 @@ public sealed class MainForm : Form
         _notificationTimer.Tick += (_, _) => CheckAlerts(manual: false);
         _notificationTimer.Start();
 
-        _repository = new JsonGuestRepository(ResolveDataPath());
+        _settings = AppSettings.Load();
+        _repository = new JsonGuestRepository(AppPaths.ResolveDataPath());
         _guests = _repository.Load().ToList();
         if (_guests.Count == 0)
         {
@@ -52,31 +56,12 @@ public sealed class MainForm : Form
         RefreshGrid();
     }
 
-    private static string ResolveDataPath()
-    {
-        var basePath = Path.Combine(AppContext.BaseDirectory, "guests.json");
-        if (File.Exists(basePath))
-        {
-            return basePath;
-        }
-
-        var cwdPath = Path.Combine(Environment.CurrentDirectory, "guests.json");
-        if (File.Exists(cwdPath))
-        {
-            return cwdPath;
-        }
-
-        var appData = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "55DayCounter");
-        Directory.CreateDirectory(appData);
-        return Path.Combine(appData, "guests.json");
-    }
-
     private void BuildUi()
     {
         var topPanel = new Panel
         {
             Dock = DockStyle.Top,
-            Height = 170,
+            Height = 198,
             Padding = new Padding(14)
         };
 
@@ -114,10 +99,12 @@ public sealed class MainForm : Form
 
         var buttons = new FlowLayoutPanel
         {
-            Location = new Point(16, 140),
-            Size = new Size(1120, 34),
+            Location = new Point(16, 148),
+            Size = new Size(1120, 38),
             Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right,
-            WrapContents = false
+            WrapContents = false,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
         };
 
         AddButton(buttons, "Add Guest", (_, _) => AddGuest(), 105);
@@ -126,6 +113,7 @@ public sealed class MainForm : Form
         AddButton(buttons, "Cancel Cycle", (_, _) => SetSelectedStatus(CycleStatus.Canceled), 110);
         AddButton(buttons, "Check Alerts", (_, _) => CheckAlerts(manual: true), 105);
         AddButton(buttons, "Test Alert", (_, _) => ShowTestNotification(), 95);
+        AddButton(buttons, "Schedule", (_, _) => ShowScheduleSettings(), 95);
         AddButton(buttons, "Today's List", (_, _) => ShowTodaysList(), 110);
         AddButton(buttons, "Export CSV", (_, _) => ExportCsv(), 105);
 
@@ -140,6 +128,9 @@ public sealed class MainForm : Form
         _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
         _grid.RowHeadersVisible = false;
         _grid.BackgroundColor = Color.White;
+        _grid.SelectionChanged += (_, _) => _grid.Invalidate();
+        _grid.RowPostPaint += PaintSelectedRowBorder;
+        _grid.SortCompare += GridSortCompare;
         _grid.CellDoubleClick += (_, args) =>
         {
             if (args.RowIndex >= 0)
@@ -173,7 +164,12 @@ public sealed class MainForm : Form
 
     private static void AddButton(Control parent, string text, EventHandler onClick, int width)
     {
-        var button = new Button { Text = text, Size = new Size(width, 32) };
+        var button = new Button
+        {
+            Text = text,
+            Size = new Size(width, 32),
+            Margin = new Padding(0, 0, 8, 0)
+        };
         button.Click += onClick;
         parent.Controls.Add(button);
     }
@@ -185,8 +181,41 @@ public sealed class MainForm : Form
             Name = name,
             HeaderText = header,
             FillWeight = fillWeight,
-            Visible = visible
+            Visible = visible,
+            SortMode = DataGridViewColumnSortMode.Automatic
         });
+    }
+
+    private static void GridSortCompare(object? sender, DataGridViewSortCompareEventArgs e)
+    {
+        if (e.Column.Name == "RoomNumber")
+        {
+            e.SortResult = CompareRoomNumbers(e.CellValue1?.ToString() ?? string.Empty, e.CellValue2?.ToString() ?? string.Empty);
+            e.Handled = true;
+            return;
+        }
+
+        if (e.Column.Name is "CheckInDate" or "CheckOutDate" or "NotifyDate"
+            && DateTime.TryParse(e.CellValue1?.ToString(), out var leftDate)
+            && DateTime.TryParse(e.CellValue2?.ToString(), out var rightDate))
+        {
+            e.SortResult = DateTime.Compare(leftDate, rightDate);
+            e.Handled = true;
+            return;
+        }
+
+        e.SortResult = string.Compare(e.CellValue1?.ToString(), e.CellValue2?.ToString(), StringComparison.OrdinalIgnoreCase);
+        e.Handled = true;
+    }
+
+    private static int CompareRoomNumbers(string left, string right)
+    {
+        if (int.TryParse(left, out var leftNumber) && int.TryParse(right, out var rightNumber))
+        {
+            return leftNumber.CompareTo(rightNumber);
+        }
+
+        return string.Compare(left, right, StringComparison.OrdinalIgnoreCase);
     }
 
     private void RefreshGrid()
@@ -246,13 +275,6 @@ public sealed class MainForm : Form
             .ThenBy(g => g.RoomNumber)
             .ToList();
 
-        if (!manual)
-        {
-            dueGuests = dueGuests
-                .Where(g => g.LastNotifiedFor != NotificationKey(g, today))
-                .ToList();
-        }
-
         if (dueGuests.Count == 0)
         {
             if (manual)
@@ -263,45 +285,86 @@ public sealed class MainForm : Form
         }
 
         _notifyIcon.BalloonTipTitle = "55 Day Counter";
-        _notifyIcon.BalloonTipText = FormatNotificationList(dueGuests, today);
+        _notifyIcon.BalloonTipText = NotificationRunner.FormatNotificationList(dueGuests, today);
         _notifyIcon.ShowBalloonTip(8000);
 
-        if (!manual)
-        {
-            foreach (var guest in dueGuests)
-            {
-                guest.LastNotifiedFor = NotificationKey(guest, today);
-            }
-            _repository.Save(_guests);
-        }
     }
 
     private void ShowTestNotification()
     {
         _notifyIcon.BalloonTipTitle = "55 Day Counter Test";
-        _notifyIcon.BalloonTipText = "Notifications are working for 55 Day Counter. Click this notification to open Today's List.";
+        _notifyIcon.BalloonTipText = "Notifications are working. Click this notification to open Today's List.";
         _notifyIcon.ShowBalloonTip(8000);
-        MessageBox.Show(this, "A test notification was sent. If you did not see it, check Windows Notifications and Do Not Disturb/Focus Assist settings.", "55 Day Counter");
     }
 
-    private static string NotificationKey(GuestCycle guest, DateTime today)
+    private void ShowScheduleSettings()
     {
-        return $"{guest.CheckOutDate:yyyy-MM-dd}|{today:yyyy-MM-dd}";
-    }
-
-    private static string FormatNotificationList(IReadOnlyList<GuestCycle> guests, DateTime today)
-    {
-        var lines = guests
-            .Take(4)
-            .Select(g => $"Rm {g.RoomNumber}: {g.GuestName} - {CycleRules.FormatDaysLeft(g, today)}")
-            .ToList();
-
-        if (guests.Count > 4)
+        using var dialog = new ScheduleSettingsForm(_settings);
+        if (dialog.ShowDialog(this) != DialogResult.OK)
         {
-            lines.Add($"+ {guests.Count - 4} more in Today's List");
+            return;
         }
 
-        return string.Join(Environment.NewLine, lines);
+        _settings.ScheduledNotificationsEnabled = dialog.ScheduledNotificationsEnabled;
+        _settings.ScheduleHasBeenConfigured = true;
+        _settings.ScheduledTime = new TimeSpan(dialog.ScheduledTime.Hours, dialog.ScheduledTime.Minutes, 0);
+        _settings.Save();
+
+        var result = ScheduledNotificationService.Configure(_settings.ScheduledTime, _settings.ScheduledNotificationsEnabled);
+        MessageBox.Show(this, result, "Notification Schedule");
+    }
+
+    private void PromptForNotificationPermissionIfNeeded()
+    {
+        if (_settings.NotificationPermissionPromptShown)
+        {
+            return;
+        }
+
+        _settings.NotificationPermissionPromptShown = true;
+        _settings.Save();
+
+        var result = MessageBox.Show(
+            this,
+            "55 Day Counter needs Windows notifications for checkout reminders. A test notification will be sent now. If you do not see it, open Windows Notification settings and allow notifications for this app.",
+            "Enable Notifications",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Information);
+
+        if (result != DialogResult.OK)
+        {
+            return;
+        }
+
+        ShowTestNotification();
+
+        var openSettings = MessageBox.Show(
+            this,
+            "Did the test notification appear? Click No to open Windows Notification settings.",
+            "Enable Notifications",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (openSettings == DialogResult.No)
+        {
+            OpenWindowsNotificationSettings();
+        }
+    }
+
+    private static void OpenWindowsNotificationSettings()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "ms-settings:notifications",
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            MessageBox.Show("Open Windows Settings > System > Notifications and allow notifications for 55 Day Counter.", "55 Day Counter");
+        }
     }
 
     private static void ApplyRowStatusStyle(DataGridViewRow row, string status)
@@ -320,6 +383,19 @@ public sealed class MainForm : Form
         row.DefaultCellStyle.BackColor = color;
         row.DefaultCellStyle.SelectionBackColor = color;
         row.DefaultCellStyle.SelectionForeColor = Color.Black;
+    }
+
+    private void PaintSelectedRowBorder(object? sender, DataGridViewRowPostPaintEventArgs e)
+    {
+        if (!_grid.Rows[e.RowIndex].Selected)
+        {
+            return;
+        }
+
+        using var pen = new Pen(Color.FromArgb(0, 92, 170), 2);
+        var bounds = new Rectangle(0, e.RowBounds.Top, _grid.ClientSize.Width - 1, e.RowBounds.Height - 1);
+        bounds.Inflate(-1, -1);
+        e.Graphics.DrawRectangle(pen, bounds);
     }
 
     private GuestCycle? SelectedGuest()
@@ -394,7 +470,20 @@ public sealed class MainForm : Form
             return;
         }
 
-        guest.Status = status;
+        var action = status == CycleStatus.Completed ? "complete" : "cancel";
+        var result = MessageBox.Show(
+            this,
+            $"This will permanently remove {guest.GuestName} in room {guest.RoomNumber} from the active list and database. Continue?",
+            $"Confirm {action}",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Warning);
+
+        if (result != DialogResult.Yes)
+        {
+            return;
+        }
+
+        _guests.Remove(guest);
         SaveAndRefresh();
     }
 
@@ -422,7 +511,9 @@ public sealed class MainForm : Form
         using var saveDialog = new SaveFileDialog
         {
             Filter = "CSV files (*.csv)|*.csv",
-            FileName = "55-day-counter-export.csv"
+            DefaultExt = "csv",
+            AddExtension = true,
+            FileName = $"55-day-counter-active-guests-{DateTime.Today:yyyy-MM-dd}.csv"
         };
 
         if (saveDialog.ShowDialog(this) != DialogResult.OK)
@@ -430,9 +521,20 @@ public sealed class MainForm : Form
             return;
         }
 
-        using var writer = new StreamWriter(saveDialog.FileName);
+        var fileName = Path.ChangeExtension(saveDialog.FileName, ".csv");
+        using var writer = new StreamWriter(fileName);
+        writer.WriteLine($"Report Date,{DateTime.Today:MM/dd/yyyy}");
+        writer.WriteLine("Report,Active Guest List");
+        writer.WriteLine();
         writer.WriteLine("GuestName,RoomNumber,CheckInDate,CheckOutDate,NotifyDate,Status,Notes");
-        foreach (var guest in _guests.OrderBy(g => g.CheckOutDate).ThenBy(g => g.RoomNumber))
+        var activeGuests = _grid.Rows
+            .Cast<DataGridViewRow>()
+            .Where(row => !row.IsNewRow)
+            .Select(row => Convert.ToInt32(row.Cells["Id"].Value))
+            .Select(id => _guests.First(g => g.Id == id))
+            .Where(g => CycleRules.GetDisplayStatus(g, DateTime.Today) is CycleStatus.Active or CycleStatus.DueSoon or CycleStatus.DueToday or CycleStatus.Overdue);
+
+        foreach (var guest in activeGuests)
         {
             var values = new[]
             {
@@ -458,7 +560,12 @@ public sealed class MainForm : Form
     protected override void OnShown(EventArgs e)
     {
         base.OnShown(e);
+        PromptForNotificationPermissionIfNeeded();
         CheckAlerts(manual: false);
+        if (_openTodayListOnShown)
+        {
+            BeginInvoke(ShowTodaysList);
+        }
     }
 
     protected override void Dispose(bool disposing)

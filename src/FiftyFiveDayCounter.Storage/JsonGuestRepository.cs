@@ -117,8 +117,7 @@ public sealed class JsonGuestRepository
             CheckOutDate = checkOut.Date,
             NotifyDate = notifyDate.Date,
             Status = ReadString(item, "Status", CycleStatus.Active),
-            Notes = ReadString(item, "Notes"),
-            LastNotifiedFor = ReadString(item, "LastNotifiedFor")
+            Notes = ReadString(item, "Notes")
         };
     }
 
